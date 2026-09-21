@@ -82,6 +82,7 @@ func migrate(db *gorm.DB) error {
 		&model.DefectFinding{},
 		&model.PriorityDecision{},
 		&model.PriorityDecisionRevision{},
+		&model.PriorityReview{},
 	)
 }
 
@@ -119,6 +120,10 @@ func Seed(ctx context.Context, db *gorm.DB) error {
 	}
 
 	if err := seedPriorityDecision(ctx, db); err != nil {
+		return err
+	}
+
+	if err := seedPriorityReview(ctx, db); err != nil {
 		return err
 	}
 
@@ -250,4 +255,29 @@ func seedPriorityDecision(ctx context.Context, db *gorm.DB) error {
 		}
 		return nil
 	})
+}
+
+func seedPriorityReview(ctx context.Context, db *gorm.DB) error {
+	var count int64
+	if err := db.WithContext(ctx).Model(&model.PriorityReview{}).Count(&count).Error; err != nil || count > 0 {
+		return err
+	}
+	var defect model.DefectFinding
+	if err := db.WithContext(ctx).Where("code = ?", "DF-003").First(&defect).Error; err != nil {
+		return err
+	}
+	var decision model.PriorityDecision
+	if err := db.WithContext(ctx).Where("code = ?", "PD-003").First(&decision).Error; err != nil {
+		return err
+	}
+	now := time.Now().UTC()
+	review := model.PriorityReview{
+		BaseModel: model.BaseModel{Code: "PR-DF-003", Name: "严重缺陷复查 DF-003", Status: "pending", Version: 1,
+			Description: "严重缺陷 DF-003 已核实，同桥决定 PD-003（restrict）触发优先级复查，原决定继续生效"},
+		DefectID: defect.ID, DefectCode: defect.Code, Facility: defect.Facility,
+		TriggeredBy: "system", TriggerRequestID: "seed-pr-df-003", TriggeredAt: now,
+		DecisionID: decision.ID, DecisionCode: decision.Code,
+		OriginalStatus: decision.Status, OriginalPreparedBy: decision.PreparedBy,
+	}
+	return db.WithContext(ctx).Create(&review).Error
 }

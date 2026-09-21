@@ -17,6 +17,7 @@ export interface DomainRecord {
   relatedCode: string;
   preparedBy?: string;
   revisions?: PriorityDecisionRevision[];
+  triggeredReviews?: PriorityReview[];
   createdAt: string;
   updatedAt: string;
 }
@@ -32,6 +33,35 @@ export interface PriorityDecisionRevision {
   requestId: string;
   snapshot: string;
   createdAt: string;
+}
+
+export type PriorityReviewOutcome = 'maintain' | 'upgrade' | 'release';
+
+export interface PriorityReview {
+  id: number;
+  code: string;
+  name: string;
+  status: 'pending' | 'maintained' | 'upgraded' | 'released';
+  version: number;
+  description: string;
+  defectId: number;
+  defectCode: string;
+  facility: string;
+  triggeredBy: string;
+  triggerRequestId: string;
+  triggeredAt: string;
+  decisionId: number;
+  decisionCode: string;
+  originalStatus: string;
+  originalPreparedBy: string;
+  outcome: PriorityReviewOutcome | '';
+  replacementBasis: string;
+  reviewedBy: string;
+  reviewRequestId: string;
+  reviewedAt: string | null;
+  resultingDecisionVersion: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface PageMeta { page: number; pageSize: number; total: number }

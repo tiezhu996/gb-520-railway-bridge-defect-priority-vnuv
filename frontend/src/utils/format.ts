@@ -18,8 +18,8 @@ export function allowedTargets(entityKey: string, current: string): readonly str
 	return transitions[entityKey]?.[current] || [];
 }
 export function statusTone(status: string): 'success' | 'warning' | 'danger' | 'neutral' {
-  if (/approved|accepted|released|completed|signed|closed|pass|ready|online|cleared|succeeded/.test(status)) return 'success';
-  if (/failed|rejected|critical|scrap|discard|revoked|urgent/.test(status)) return 'danger';
+  if (/approved|accepted|released|maintained|completed|signed|closed|pass|ready|online|cleared|succeeded/.test(status)) return 'success';
+  if (/failed|rejected|critical|scrap|discard|revoked|urgent|upgraded/.test(status)) return 'danger';
   if (/hold|warning|review|pending|restricted|limited|quarantine/.test(status)) return 'warning';
   return 'neutral';
 }

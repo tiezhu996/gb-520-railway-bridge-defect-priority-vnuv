@@ -33,3 +33,13 @@ type UpdatePriorityDecision struct {
 	Evidence        string    `json:"evidence" binding:"required,max=2000"`
 	RelatedCode     string    `json:"relatedCode" binding:"required,max=64"`
 }
+
+// ResolvePriorityReview is the write contract for processing a severe-defect
+// triggered priority re-review. Outcome is limited to maintain/upgrade/release
+// by the service state machine; ExpectedVersion provides optimistic locking on
+// the pending review record.
+type ResolvePriorityReview struct {
+	ExpectedVersion  uint   `json:"expectedVersion" binding:"required"`
+	Outcome          string `json:"outcome" binding:"required,oneof=maintain upgrade release"`
+	ReplacementBasis string `json:"replacementBasis" binding:"required,min=3,max=2000"`
+}

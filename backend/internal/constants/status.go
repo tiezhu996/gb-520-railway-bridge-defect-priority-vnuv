@@ -25,6 +25,47 @@ const (
 
 var AllPriorityLevel = []string{"observe", "restrict", "urgent"}
 
+// PriorityReviewStatus covers the lifecycle of the mandatory re-review that is
+// triggered when a severe defect is verified on a bridge already under an
+// observe/restrict decision.
+type PriorityReviewStatus string
+
+const (
+	PriorityReviewStatusPending    PriorityReviewStatus = "pending"
+	PriorityReviewStatusMaintained PriorityReviewStatus = "maintained"
+	PriorityReviewStatusUpgraded   PriorityReviewStatus = "upgraded"
+	PriorityReviewStatusReleased   PriorityReviewStatus = "released"
+)
+
+var AllPriorityReviewStatus = []string{"pending", "maintained", "upgraded", "released"}
+
+// PriorityReviewOutcome are the only resolutions a reviewer may submit.
+const (
+	PriorityReviewOutcomeMaintain = "maintain"
+	PriorityReviewOutcomeUpgrade  = "upgrade"
+	PriorityReviewOutcomeRelease  = "release"
+)
+
+var AllPriorityReviewOutcome = []string{
+	PriorityReviewOutcomeMaintain, PriorityReviewOutcomeUpgrade, PriorityReviewOutcomeRelease,
+}
+
+// PriorityDecisionReleased is the terminal state written when a re-review
+// releases an existing observe/restrict decision. It is reachable only through
+// the re-review resolution flow, never through the normal transition graph.
+const PriorityDecisionReleased = "released"
+
+// SevereRiskLevels are the defect risk levels that force a priority re-review
+// once the defect is verified.
+var SevereRiskLevels = map[string]bool{"high": true, "critical": true}
+
+// ReviewTriggerStatuses are the terminal priority decisions that a new severe
+// finding on the same bridge forces back into re-review.
+var ReviewTriggerStatuses = map[string]bool{
+	string(PriorityLevelObserve):  true,
+	string(PriorityLevelRestrict): true,
+}
+
 var BridgeAssetTransitions = map[string]map[string]bool{
 	"active":     {"restricted": true, "closed": true},
 	"restricted": {"closed": true, "retired": true, "active": true},

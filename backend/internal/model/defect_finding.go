@@ -16,6 +16,9 @@ type DefectFinding struct {
 	EffectiveAt time.Time `json:"effectiveAt"`
 	Evidence    string    `json:"evidence" gorm:"size:2000"`
 	RelatedCode string    `json:"relatedCode" gorm:"size:64;index"`
+	// TriggeredReviews are hydrated on read (gorm:"-") and show the priority
+	// reviews generated when this severe defect was verified.
+	TriggeredReviews []PriorityReview `json:"triggeredReviews,omitempty" gorm:"-"`
 }
 
 func (item *DefectFinding) GetBase() *BaseModel { return &item.BaseModel }

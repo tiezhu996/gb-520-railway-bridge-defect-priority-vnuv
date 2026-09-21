@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"strings"
 
 	"github.com/blueship581/railway-bridge-defect-priority/backend/internal/dto"
@@ -17,6 +18,10 @@ type PriorityDecisionRepository interface {
 	UpdateWithRevision(context.Context, uint, uint, *model.PriorityDecision, *model.PriorityDecisionRevision) error
 	Delete(context.Context, uint) error
 	CountByStatus(context.Context) (map[string]int64, error)
+	// FindTriggerForFacility returns the most recently updated observe/restrict
+	// terminal decision for the same facility, if any. It is the decision that a
+	// newly verified severe defect forces back into re-review.
+	FindTriggerForFacility(ctx context.Context, facility string, statuses []string) (model.PriorityDecision, bool, error)
 }
 
 type priorityDecisionRepository struct {
@@ -87,4 +92,17 @@ func (r *priorityDecisionRepository) Delete(ctx context.Context, id uint) error 
 }
 func (r *priorityDecisionRepository) CountByStatus(ctx context.Context) (map[string]int64, error) {
 	return r.store.CountByStatus(ctx)
+}
+func (r *priorityDecisionRepository) FindTriggerForFacility(ctx context.Context, facility string, statuses []string) (model.PriorityDecision, bool, error) {
+	var item model.PriorityDecision
+	err := r.db.WithContext(ctx).
+		Where("facility = ? AND status IN ?", strings.TrimSpace(facility), statuses).
+		Order("updated_at DESC, id DESC").First(&item).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return model.PriorityDecision{}, false, nil
+	}
+	if err != nil {
+		return model.PriorityDecision{}, false, err
+	}
+	return item, true, nil
 }

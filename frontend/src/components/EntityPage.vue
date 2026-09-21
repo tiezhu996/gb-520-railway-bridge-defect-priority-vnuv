@@ -1,9 +1,10 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
-import type { DomainRecord, EntityConfig, PriorityDecisionRevision } from '../types/domain';
+import type { DomainRecord, EntityConfig, PriorityDecisionRevision, PriorityReview } from '../types/domain';
 import { allowedTargets, formatDate } from '../utils/format';
 import { useAuth } from '../hooks/useAuth';
+import { PRIORITY_REVIEW_LABELS } from '../types/status';
 import StatusBadge from './common/StatusBadge.vue';
 import SeverityBadge from './common/SeverityBadge.vue';
 import EvidenceGallery from './common/EvidenceGallery.vue';
@@ -29,6 +30,10 @@ function targetsFor(item: DomainRecord): readonly string[] {
 
 function latestRevision(item: DomainRecord): PriorityDecisionRevision | undefined {
 	return item.revisions?.[item.revisions.length - 1];
+}
+
+function reviewLabel(review: PriorityReview): string {
+	return PRIORITY_REVIEW_LABELS[review.status] || review.status;
 }
 
 async function createDemo() {
@@ -69,6 +74,18 @@ async function confirmTransition() {
 				<el-table-column label="名称" min-width="180"><template #default="{ row }"><strong>{{ row.name }}</strong><small>{{ row.facility }}</small></template></el-table-column>
 				<el-table-column label="状态" width="130"><template #default="{ row }"><StatusBadge :status="row.status"/></template></el-table-column>
 				<el-table-column label="风险" width="90"><template #default="{ row }"><SeverityBadge v-if="['defectFinding', 'priorityDecision'].includes(config.key)" :severity="row.riskLevel"/><span v-else>{{ row.riskLevel }}</span></template></el-table-column>
+				<el-table-column v-if="config.key === 'defectFinding'" label="触发决定" width="230">
+					<template #default="{ row }">
+						<div v-if="row.triggeredReviews?.length" class="triggered-reviews">
+							<div v-for="review in row.triggeredReviews" :key="review.id" class="triggered-review">
+								<StatusBadge :status="review.status"/>
+								<small>{{ review.decisionCode }} · {{ review.originalStatus }} → {{ reviewLabel(review) }}</small>
+								<small v-if="review.status !== 'pending'">{{ review.reviewedBy }} · v{{ review.resultingDecisionVersion }}</small>
+							</div>
+						</div>
+						<span v-else class="muted">无</span>
+					</template>
+				</el-table-column>
 				<el-table-column prop="owner" label="责任人" min-width="130"/>
 				<el-table-column label="指标" width="120"><template #default="{ row }">{{ row.metricValue }} {{ row.metricUnit }}</template></el-table-column>
 				<el-table-column v-if="config.key === 'priorityDecision'" label="版本审计" width="250"><template #default="{ row }"><strong>v{{ row.version }} · {{ row.preparedBy }}</strong><small>{{ latestRevision(row)?.actor }} · {{ latestRevision(row)?.requestId }}</small><small>{{ latestRevision(row)?.evidence }}</small></template></el-table-column>
