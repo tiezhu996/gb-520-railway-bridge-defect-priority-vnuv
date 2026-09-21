@@ -37,11 +37,15 @@ docker compose down -v --remove-orphans
 | 检查批次 | `InspectionRound` | `/api/inspections` | planned, running, review, completed |
 | 缺陷发现 | `DefectFinding` | `/api/defects` | new, verified, monitoring, mitigated, closed |
 | 优先级决定 | `PriorityDecision` | `/api/priorities` | draft → observe/restrict/urgent（终态） |
+| 优先级复查 | `PriorityRecheck` | `/api/rechecks` | pending → maintained/escalated/released（终态） |
 
 - JWT 登录和 viewer/operator/reviewer/admin 四级 RBAC，后端路由与前端守卫、导航和按钮保持一致。
 - 所有状态变化使用乐观锁并写入审计日志；审计查询仅 reviewer/admin 可见。
 - 优先级决定的每次创建、草稿更新和定稿均追加不可变版本，保留证据、状态、操作者、request ID 和完整快照。
 - 优先级只能由不同于拟制人的 reviewer/admin 定稿；observe/restrict/urgent 均为不可覆盖终态。
+- 严重缺陷（riskLevel=critical）核实时，若同桥（相同 facility）已存在 observe/restrict 终态决定，系统自动生成一条待复查事项，原决定继续生效；同一缺陷由唯一约束保证并发只生成一条。
+- 复查处理人须为不同于原拟制人的 reviewer/admin，只能维持、升级为立即处置或解除，并留存替代依据；升级为 urgent 与复查处理在同一事务完成，失败不会覆盖原决定和版本。
+- 缺陷页显示触发决定，优先级页显示复查状态与结果，审计页可回读复查触发与处理记录；普通缺陷与原有独立复核规则不受影响。
 - 请求 ID、结构化日志、全局错误映射和 Redis 分布式限流。
 - 提供脱敏运行配置、当前会话、审计汇总和单实体审计历史接口。
 - 业务工作台支持查询、新建、状态推进、风险标识及操作审计查看。
@@ -118,12 +122,15 @@ cd .. && docker compose config --quiet
 
 `PriorityDecisionRevision` 位于 `backend/internal/model/priority_decision.go`，与主记录在同一事务写入；查询 `/api/priorities` 或 `/api/priorities/:id` 时按版本升序返回 `revisions`。
 
+`PriorityRecheck` 位于 `backend/internal/model/priority_recheck.go`，`defect_finding_id` 上的唯一索引保证同一缺陷只生成一条复查；`POST /api/rechecks/:id/resolve` 接受 `maintain`/`escalate`/`release` 与必填 `basis`（替代依据），`escalate` 会在同一事务内把原决定升级为 `urgent` 并追加版本。
+
 ## 共享枚举位置
 
 | 枚举 | 值 | 前后端出现位置 |
 |---|---|---|
 | `DefectState` | `new, verified, monitoring, mitigated, closed` | `backend/internal/constants/status.go`、`frontend/src/types/status.ts` |
 | `PriorityLevel` | `observe, restrict, urgent` | `backend/internal/constants/status.go`、`frontend/src/types/status.ts` |
+| `RecheckStatus` | `pending, maintained, escalated, released` | `backend/internal/constants/status.go`、`frontend/src/types/status.ts` |
 
 每个实体自己的完整迁移图同样位于 `backend/internal/constants/status.go`；页面使用的状态列表位于 `frontend/src/types/status.ts`。修改状态时必须同步两处并更新对应服务测试。
 

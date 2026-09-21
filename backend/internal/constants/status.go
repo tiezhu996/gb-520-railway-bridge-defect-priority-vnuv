@@ -25,6 +25,13 @@ const (
 
 var AllPriorityLevel = []string{"observe", "restrict", "urgent"}
 
+// RecheckStatus mirrors the 严重缺陷触发复查 lifecycle in frontend/src/types/status.ts.
+var AllRecheckStatus = []string{"pending", "maintained", "escalated", "released"}
+
+// SevereDefectRiskLevel marks the defect risk level that triggers a priority
+// recheck when the defect is verified on a bridge with a terminal decision.
+const SevereDefectRiskLevel = "critical"
+
 var BridgeAssetTransitions = map[string]map[string]bool{
 	"active":     {"restricted": true, "closed": true},
 	"restricted": {"closed": true, "retired": true, "active": true},

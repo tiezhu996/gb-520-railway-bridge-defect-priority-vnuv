@@ -33,14 +33,17 @@ func New(cfg config.Config, db *gorm.DB, redisClient *redis.Client, logger *slog
 	inspectionRoundRepository := repository.NewInspectionRoundRepository(db)
 	defectFindingRepository := repository.NewDefectFindingRepository(db)
 	priorityDecisionRepository := repository.NewPriorityDecisionRepository(db)
+	priorityRecheckRepository := repository.NewPriorityRecheckRepository(db)
 	bridgeAssetService := service.NewBridgeAssetService(bridgeAssetRepository, securityService)
 	inspectionRoundService := service.NewInspectionRoundService(inspectionRoundRepository, securityService)
-	defectFindingService := service.NewDefectFindingService(defectFindingRepository, securityService)
+	priorityRecheckService := service.NewPriorityRecheckService(priorityRecheckRepository, priorityDecisionRepository, securityService)
+	defectFindingService := service.NewDefectFindingService(defectFindingRepository, securityService, priorityRecheckService)
 	priorityDecisionService := service.NewPriorityDecisionService(priorityDecisionRepository, securityService)
 	bridgeAssetHandler := handler.NewBridgeAssetHandler(bridgeAssetService)
 	inspectionRoundHandler := handler.NewInspectionRoundHandler(inspectionRoundService)
 	defectFindingHandler := handler.NewDefectFindingHandler(defectFindingService)
 	priorityDecisionHandler := handler.NewPriorityDecisionHandler(priorityDecisionService)
+	priorityRecheckHandler := handler.NewPriorityRecheckHandler(priorityRecheckService)
 	systemHandler := handler.NewSystemHandler(securityService, bridgeAssetService, inspectionRoundService, defectFindingService, priorityDecisionService, db, redisClient)
 
 	engine.GET("/healthz", systemHandler.Health)
@@ -59,6 +62,7 @@ func New(cfg config.Config, db *gorm.DB, redisClient *redis.Client, logger *slog
 	inspectionRoundHandler.Register(api)
 	defectFindingHandler.Register(api)
 	priorityDecisionHandler.Register(api)
+	priorityRecheckHandler.Register(api)
 
 	engine.NoRoute(func(c *gin.Context) {
 		if c.Request.Method == http.MethodOptions {

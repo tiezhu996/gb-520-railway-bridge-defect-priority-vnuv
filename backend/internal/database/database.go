@@ -82,6 +82,7 @@ func migrate(db *gorm.DB) error {
 		&model.DefectFinding{},
 		&model.PriorityDecision{},
 		&model.PriorityDecisionRevision{},
+		&model.PriorityRecheck{},
 	)
 }
 
@@ -119,6 +120,10 @@ func Seed(ctx context.Context, db *gorm.DB) error {
 	}
 
 	if err := seedPriorityDecision(ctx, db); err != nil {
+		return err
+	}
+
+	if err := seedPriorityRecheck(ctx, db); err != nil {
 		return err
 	}
 
@@ -199,6 +204,11 @@ func seedDefectFinding(ctx context.Context, db *gorm.DB) error {
 			Description: "用于启动验证和主要流程演示的缺陷发现记录"}, Facility: "铁路桥梁缺陷处置优先级区域3", Owner: "安全主管组",
 			Category: "复核", RiskLevel: "high", MetricValue: 37.5, MetricUnit: "score",
 			EffectiveAt: now.Add(6 * time.Hour), Evidence: "已完成基础证据核对", RelatedCode: "REL-520-03"},
+
+		{BaseModel: model.BaseModel{Code: "DF-004", Name: "严重缺陷复查触发示例", Status: "verified", Version: 1,
+			Description: "严重缺陷核实后触发同桥终态决定复查的演示记录"}, Facility: "铁路桥梁缺陷处置优先级区域2", Owner: "质量复核组",
+			Category: "重点", RiskLevel: "critical", MetricValue: 91.0, MetricUnit: "score",
+			EffectiveAt: now.Add(9 * time.Hour), Evidence: "裂缝扩展复测记录与影像证据已核实", RelatedCode: "REL-520-02"},
 	}
 	return db.WithContext(ctx).Create(&items).Error
 }
@@ -250,4 +260,30 @@ func seedPriorityDecision(ctx context.Context, db *gorm.DB) error {
 		}
 		return nil
 	})
+}
+
+// seedPriorityRecheck mirrors the runtime trigger for the seeded severe defect
+// DF-004 so an empty-volume startup immediately shows one pending recheck.
+func seedPriorityRecheck(ctx context.Context, db *gorm.DB) error {
+	var count int64
+	if err := db.WithContext(ctx).Model(&model.PriorityRecheck{}).Count(&count).Error; err != nil || count > 0 {
+		return err
+	}
+	var defect model.DefectFinding
+	if err := db.WithContext(ctx).Where("code = ?", "DF-004").First(&defect).Error; err != nil {
+		return err
+	}
+	var decision model.PriorityDecision
+	if err := db.WithContext(ctx).Where("code = ?", "PD-002").First(&decision).Error; err != nil {
+		return err
+	}
+	now := time.Now().UTC()
+	item := model.PriorityRecheck{
+		DefectFindingID: defect.ID, DefectCode: defect.Code,
+		PriorityDecisionID: decision.ID, DecisionCode: decision.Code,
+		DecisionPreparedBy: decision.PreparedBy, TriggerLevel: decision.Status,
+		Status: model.RecheckStatusPending, RequestID: "seed-recheck-df-004",
+		CreatedAt: now, UpdatedAt: now,
+	}
+	return db.WithContext(ctx).Create(&item).Error
 }

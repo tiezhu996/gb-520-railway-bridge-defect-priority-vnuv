@@ -37,3 +37,17 @@
 - 浏览器控制台 error/warning：0。
 
 默认 `./scripts/validate.sh` 会在结束时执行 `docker compose down -v --remove-orphans`，不会保留本项目容器、网络或命名卷。
+
+## 严重缺陷触发优先级复查（2026-09-21）
+
+- `go test ./...`、`go test -race ./...`、`go vet ./...`、`go build ./...`：通过，新增 `service/priority_recheck_test.go` 覆盖触发、去重、三种处理、职责分离与失败保护。
+- `npm run typecheck`、`npm run build`：通过。
+- SQLite 开发模式端到端验证（`DATABASE_DRIVER=sqlite`）：
+  - 严重缺陷（critical）核实且同桥存在 observe/restrict 终态决定时，`/api/rechecks` 生成一条 pending 复查，原决定状态与版本不变。
+  - 同一缺陷再次核实（verified→monitoring→verified）仍只有一条复查（唯一约束去重）。
+  - 普通缺陷（high）核实、同桥无终态决定时均不触发。
+  - viewer/operator 处理复查返回 403；原拟制人处理返回 422；空替代依据返回 400。
+  - 维持/解除后原决定状态、版本与版本链不变；升级为 urgent 后决定版本 +1 并追加含替代依据的不可变版本。
+  - 已处理复查再次处理返回 422，决定与版本链保持原值。
+  - `/api/audits/PriorityRecheck/:id` 可回读 recheck-trigger 与 recheck-resolve 记录及替代依据。
+- `scripts/validate.sh` 已纳入上述 API 验收步骤（含种子数据 DF-004 → PD-002 待复查事项检查）。

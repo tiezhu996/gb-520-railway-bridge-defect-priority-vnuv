@@ -11,4 +11,6 @@ var (
 	ErrReviewRole        = errors.New("reviewer or admin role is required to finalize a priority")
 	ErrSeparationOfDuty  = errors.New("priority preparer cannot approve the same decision")
 	ErrNotDecisionOwner  = errors.New("only the preparer may edit this draft decision")
+	ErrRecheckClosed     = errors.New("priority recheck is already resolved")
+	ErrRecheckSeparation = errors.New("recheck handler must differ from the original decision preparer")
 )

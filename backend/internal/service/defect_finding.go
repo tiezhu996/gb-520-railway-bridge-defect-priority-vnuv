@@ -22,13 +22,20 @@ type DefectFindingService interface {
 	StatusCounts(context.Context) (map[string]int64, error)
 }
 
+// RecheckTrigger decouples 缺陷发现 from the recheck aggregate; the defect
+// service only notifies it after a defect enters verified.
+type RecheckTrigger interface {
+	TriggerForVerifiedDefect(context.Context, model.DefectFinding, string, string) error
+}
+
 type defectFindingService struct {
 	repository repository.DefectFindingRepository
 	security   SecurityService
+	recheck    RecheckTrigger
 }
 
-func NewDefectFindingService(repo repository.DefectFindingRepository, security SecurityService) DefectFindingService {
-	return &defectFindingService{repository: repo, security: security}
+func NewDefectFindingService(repo repository.DefectFindingRepository, security SecurityService, recheck RecheckTrigger) DefectFindingService {
+	return &defectFindingService{repository: repo, security: security, recheck: recheck}
 }
 
 func (s *defectFindingService) List(ctx context.Context, query dto.PageQuery) (repository.Page[model.DefectFinding], error) {
@@ -108,7 +115,18 @@ func (s *defectFindingService) Transition(ctx context.Context, id uint, input dt
 	if err := s.security.Audit(ctx, actor, requestID, "transition", "DefectFinding", id, before, target, input.Reason); err != nil {
 		return model.DefectFinding{}, fmt.Errorf("persist transition audit: %w", err)
 	}
-	return s.repository.Get(ctx, id)
+	updated, err := s.repository.Get(ctx, id)
+	if err != nil {
+		return model.DefectFinding{}, err
+	}
+	// 严重缺陷核实后触发同桥终态决定复查。复查生成失败不回报已提交的缺陷迁移，
+	// 失败原因写入审计便于事后追踪；同一缺陷由唯一约束保证只生成一条。
+	if target == string(constants.DefectStateVerified) && s.recheck != nil {
+		if err := s.recheck.TriggerForVerifiedDefect(ctx, updated, actor, requestID); err != nil {
+			_ = s.security.Audit(ctx, actor, requestID, "recheck-trigger-failed", "DefectFinding", id, before, target, err.Error())
+		}
+	}
+	return updated, nil
 }
 
 func (s *defectFindingService) Delete(ctx context.Context, id uint, actor, requestID string) error {

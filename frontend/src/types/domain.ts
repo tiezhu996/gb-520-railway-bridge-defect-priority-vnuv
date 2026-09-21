@@ -34,6 +34,23 @@ export interface PriorityDecisionRevision {
   createdAt: string;
 }
 
+export interface PriorityRecheck {
+  id: number;
+  defectFindingId: number;
+  defectCode: string;
+  priorityDecisionId: number;
+  decisionCode: string;
+  decisionPreparedBy: string;
+  triggerLevel: string;
+  status: string;
+  basis: string;
+  handledBy: string;
+  handledAt: string | null;
+  requestId: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface PageMeta { page: number; pageSize: number; total: number }
 export interface ApiEnvelope<T> { data: T; error?: string; message?: string; meta?: PageMeta }
 export type UserRole = 'viewer' | 'operator' | 'reviewer' | 'admin';
